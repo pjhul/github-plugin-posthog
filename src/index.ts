@@ -1,55 +1,62 @@
 import express from "express";
 import bodyParser from "body-parser";
-import PostHog from "posthog-node";
+import type {
+  WebhookEvent,
+  WebhookEventMap,
+  WebhookEventName,
+} from "@octokit/webhooks-types";
 
-if (!process.env.POSTHOG_API_KEY) {
-  throw "No PostHog API Key found in environment.";
-}
+import {
+  handlePullRequestEvent,
+  handlePullRequestReviewCommentEvent,
+  handleIssuesEvent,
+  handleIssueCommentEvent,
+  handleStarEvent,
+} from "./handlers";
 
-if (!process.env.POSTHOG_HOST) {
-  console.warn(
-    "No PostHog host found in environment, defaulting to https://app.posthog.com."
-  );
-}
-
-const host = process.env.POSTHOG_HOST || "https://app.posthog.com";
 const app = express();
 const port = 3000;
-
-const phClient = new PostHog(process.env.POSTHOG_API_KEY, {
-  host,
-  flushAt: 0,
-  flushInterval: 0,
-});
 
 app.use(bodyParser.json());
 
 app.post("/webhooks", (req, res) => {
   try {
-    const eventName = req.header("X-GitHub-Event");
-    console.log(eventName);
+    const eventName = req.header("X-GitHub-Event") as WebhookEventName;
+    const deliveryId = req.header("X-GitHub-Delivery") as string;
+    // TODO: Implement HMAC signature verification
+    const signature = req.header("X-Hub-Signature-256") as string;
 
-    if (!eventName) {
-      throw "No 'X-GitHub-Event' header in request";
+    const event: WebhookEvent = req.body;
+
+    console.log(`[${deliveryId}]: Received '${eventName}' event...`);
+
+    switch (eventName) {
+      case "pull_request":
+        handlePullRequestEvent(event as WebhookEventMap["pull_request"]);
+        break;
+      case "pull_request_review_comment":
+        handlePullRequestReviewCommentEvent(
+          event as WebhookEventMap["pull_request_review_comment"]
+        );
+        break;
+      case "issues":
+        handleIssuesEvent(event as WebhookEventMap["issues"]);
+        break;
+      case "issue_comment":
+        handleIssueCommentEvent(event as WebhookEventMap["issue_comment"]);
+        break;
+      case "star":
+        handleStarEvent(event as WebhookEventMap["star"]);
+        break;
     }
-
-    phClient.capture({
-      distinctId: "distinct_id",
-      event: eventName,
-    });
 
     res.status(200).send({});
   } catch (error) {
     console.error(error);
-
     res.status(400).send({ error });
   }
 });
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
-});
-
-process.on("SIGTERM", () => {
-  phClient.shutdown();
+  console.log("Listening for webhook events...");
 });

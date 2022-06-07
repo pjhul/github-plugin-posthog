@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "es2016",
+
+    "module": "commonjs",
+    "baseUrl": "./",
+    "paths": {},
+
+    "outDir": "./build",
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
+
+    "skipLibCheck": true
+  },
+
+  "include": ["./src/**/*.ts"]
+}
